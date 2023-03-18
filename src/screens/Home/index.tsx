@@ -1,42 +1,66 @@
 import { useState } from 'react'
-import { Alert, FlatList, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { Alert, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import uuid from 'react-native-uuid'
 
-import { Participant } from '../../components/Participant'
+import { Header } from '../../components/Header.tsx'
+import { ParticipantsList } from '../../components/ParticipantsList'
 import { styles } from './styles'
 
+export interface IParticipant {
+  name: string;
+  id: string;
+}
+
 export default function Home() {
-  const [participants, setParticipants] = useState<string[]>([]);
+  const [participants, setParticipants] = useState<IParticipant[]>([]);
   const [participantName, setParticipantName] = useState('');
 
   const handleAddParticipant = (name: string) => {
-    if (participants.includes(name)) {
+    const participantExists = participants.some(
+      (participant) => participant.name === name.trim()
+    );
+
+    if (participantExists) {
       return Alert.alert(
         'Participant Exists',
         "There's already a participant with this name.",
         [
           {
             text: 'Add anyway',
+            style: 'default',
             onPress: () => {
-              setParticipants((prevState) => [...prevState, name]);
+              setParticipants((prevState) => [
+                ...prevState,
+                { name, id: uuid.v4() as string },
+              ]);
+            },
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => {
+              setParticipantName('');
             },
           },
         ]
       );
     }
 
-    setParticipants((prevState) => [...prevState, name]);
+    setParticipants((prevState) => [
+      ...prevState,
+      { name, id: uuid.v4() as string },
+    ]);
     setParticipantName('');
   };
 
-  const handleRemoveParticipant = (name: string) => {
+  const handleRemoveParticipant = ({ name, id }: IParticipant) => {
     Alert.alert('Remove', `Confirm removing participant: ${name}`, [
       {
         text: 'Yes',
         onPress: () => {
           setParticipants((prevState) => [
-            ...prevState.filter((participant) => participant !== name),
+            ...prevState.filter((participant) => participant.id !== id),
           ]);
-          Alert.alert('Deleted!');
         },
       },
       { text: 'No', style: 'cancel' },
@@ -44,51 +68,31 @@ export default function Home() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.eventName} key={1}>
-        Event Name
-      </Text>
-      <Text style={styles.eventDate} key={2}>
-        {new Date().toLocaleDateString('pt')}
-      </Text>
+    <View style={styles().container}>
+      <Header />
 
-      <View style={styles.form}>
+      <View style={styles().form}>
         <TextInput
           placeholder='Participant name'
           placeholderTextColor='#6B6B6B'
           value={participantName}
-          style={styles.input}
+          style={styles().input}
           onChangeText={setParticipantName}
         />
         <TouchableOpacity
-          style={styles.button}
+          style={styles(!participantName.trim().length).button}
           onPress={() => {
             handleAddParticipant(participantName);
           }}
+          disabled={!participantName.trim().length}
         >
-          <Text style={styles.buttonText}>+</Text>
+          <Text style={styles().buttonText}>+</Text>
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={participants}
-        keyExtractor={(item) => item}
-        showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <Participant
-            key={item}
-            name={item}
-            onRemove={() => {
-              handleRemoveParticipant(item);
-            }}
-          />
-        )}
-        ListEmptyComponent={() => (
-          <Text style={styles.listEmptyText}>
-            Nobody arrived to the event yet? Add participants to your list to
-            see them here.
-          </Text>
-        )}
+      <ParticipantsList
+        handleRemoveParticipant={handleRemoveParticipant}
+        participants={participants}
       />
     </View>
   );
